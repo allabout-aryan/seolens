@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SeoLens — SEO Crawler &amp; Auditor</title>
+<meta name="description" content="Crawl any site and audit it against 264 SEO checks: crawlability, on-page, structured data, performance, security, accessibility and AI-readiness.">
+<style>
+  :root{
+    --bg:#080a0e; --panel:#0f141b; --panel2:#131a23; --line:#1e2733;
+    --txt:#e6edf3; --muted:#8b98a5; --dim:#5c6a78;
+    --accent:#4f8cff; --accent2:#7c5cff;
+    --critical:#f85149; --high:#f0883e; --medium:#d6a429; --low:#58a6ff; --pass:#3fb950;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.55}
+  a{color:var(--accent)}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px 80px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:22px 0 10px;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:19px;letter-spacing:-.02em}
+  .dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff}
+  .badge{font-size:11.5px;color:var(--muted);border:1px solid var(--line);background:var(--panel);
+    padding:4px 9px;border-radius:999px;font-weight:600;letter-spacing:.02em}
+  .hero{padding:26px 0 6px}
+  h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 10px;letter-spacing:-.03em;font-weight:750}
+  h1 span{background:linear-gradient(100deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);max-width:660px;margin:0 0 22px;font-size:15.5px}
+  form{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;box-shadow:0 20px 50px -30px #000}
+  input[type=url],input[type=text]{flex:1 1 320px;min-width:0;background:var(--bg);border:1px solid var(--line);
+    color:var(--txt);border-radius:10px;padding:13px 14px;font-size:15px;font-family:inherit;outline:none}
+  input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.15)}
+  select{background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:10px;
+    padding:13px 12px;font-size:14px;font-family:inherit;outline:none}
+  button.go{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:10px;
+    padding:13px 22px;font-size:15px;font-weight:650;font-family:inherit;cursor:pointer;letter-spacing:-.01em}
+  button.go:disabled{opacity:.55;cursor:not-allowed}
+  .hint{color:var(--dim);font-size:12.5px;margin:9px 2px 0}
+  .hint code{color:var(--muted);background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:22px 0 8px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);font-weight:650}
+  .stat .v{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+  .v.critical{color:var(--critical)} .v.high{color:var(--high)} .v.medium{color:var(--medium)} .v.low{color:var(--low)} .v.pass{color:var(--pass)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-top:18px;overflow:hidden}
+  .panel h2{font-size:14px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line);
+    font-weight:650;letter-spacing:-.01em;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .panel h2 small{color:var(--dim);font-weight:500;font-size:12px}
+  .rows{max-height:420px;overflow:auto}
+  .row{display:flex;gap:12px;align-items:flex-start;padding:11px 16px;border-bottom:1px solid rgba(30,39,51,.6);font-size:13.5px}
+  .row:last-child{border-bottom:0}
+  .row .u{color:var(--muted);word-break:break-all;flex:1;min-width:0}
+  .row .n{color:var(--dim);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
+  .chip{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .c-critical{background:rgba(248,81,73,.14);color:var(--critical)}
+  .c-high{background:rgba(240,136,62,.14);color:var(--high)}
+  .c-medium{background:rgba(214,164,41,.14);color:var(--medium)}
+  .c-low{background:rgba(88,166,255,.13);color:var(--low)}
+  .c-pass{background:rgba(63,185,80,.13);color:var(--pass)}
+
+  .filters{display:flex;gap:7px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .filters button{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+    padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .filters button.on{background:rgba(79,140,255,.15);border-color:var(--accent);color:#cfe0ff}
+  .issue{padding:13px 16px;border-bottom:1px solid rgba(30,39,51,.7)}
+  .issue .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .issue .id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dim)}
+  .issue .t{font-weight:600;font-size:14px;letter-spacing:-.01em}
+  .issue .msg{color:var(--muted);font-size:13px;margin-top:3px}
+  .issue .urls{margin-top:7px;font-size:12px;color:var(--dim);display:none}
+  .issue.open .urls{display:block}
+  .issue .urls div{word-break:break-all;padding:1px 0}
+  .issue .toggle{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:6px;font-size:11px;padding:3px 8px;cursor:pointer;font-family:inherit}
+  .empty{padding:26px 16px;color:var(--dim);text-align:center;font-size:13.5px}
+  .bar{height:3px;background:var(--line);position:relative;overflow:hidden;border-radius:3px;margin-top:12px}
+  .bar i{position:absolute;left:0;top:0;bottom:0;width:30%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    animation:slide 1.1s infinite ease-in-out}
+  @keyframes slide{0%{left:-30%}100%{left:100%}}
+  .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.35);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .foot{color:var(--dim);font-size:12.5px;margin-top:26px;line-height:1.7;border-top:1px solid var(--line);padding-top:16px}
+  .foot b{color:var(--muted)}
+  .score{display:flex;align-items:center;gap:14px;padding:16px}
+  .ring{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;font-weight:750;font-size:22px;
+    letter-spacing:-.03em;background:conic-gradient(var(--pass) calc(var(--p)*1%), var(--line) 0)}
+  .ring i{width:58px;height:58px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font-style:normal}
+  .score .lbl{color:var(--muted);font-size:13px}
+  .score .lbl b{display:block;color:var(--txt);font-size:15px;font-weight:650}
+  .hidden{display:none!important}
+  @media(max-width:600px){ .row{flex-wrap:wrap} .stat .v{font-size:19px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="dot">S</span> SeoLens</div>
+    <div class="badge" id="checkBadge">264 checks · live crawler</div>
+  </header>
+
+  <section class="hero">
+    <h1>Crawl any site. <span>Find every SEO issue.</span></h1>
+    <p class="sub">Enter a URL and SeoLens fetches it live, parses the real HTML, and runs the full audit engine: crawlability, titles and meta, headings, content, images, links, structured data, social, international, performance, security, mobile, accessibility, analytics, AI-readiness, URL structure, trust and spam policy.</p>
+
+    <form id="f" autocomplete="off">
+      <input id="url" type="text" placeholder="example.com or https://example.com/page" spellcheck="false" aria-label="Site URL">
+      <select id="max" aria-label="Page limit">
+        <option value="1">1 page (fast)</option>
+        <option value="10" selected>10 pages</option>
+        <option value="25">25 pages</option>
+        <option value="50">50 pages</option>
+        <option value="100">100 pages</option>
+      </select>
+      <button class="go" id="go" type="submit">Start crawl</button>
+    </form>
+    <p class="hint">Live crawl, no signup. This hosted demo is capped at <code>100</code> pages per run — the full engine is specified for <code>50,000</code>.</p>
+  </section>
+
+  <div id="progress" class="hidden">
+    <div class="panel" style="padding:16px">
+      <div style="display:flex;gap:10px;align-items:center;font-size:14px">
+        <span class="spinner"></span>
+        <span id="pText">Starting crawl…</span>
+        <span id="pCount" style="margin-left:auto;color:var(--dim);font-size:12.5px;font-variant-numeric:tabular-nums"></span>
+      </div>
+      <div class="bar"><i></i></div>
+    </div>
+    <div class="panel">
+      <h2>Crawled pages <small id="liveNote">streaming</small></h2>
+      <div class="rows" id="liveRows"></div>
+    </div>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="stats" id="stats"></div>
+    <div class="panel">
+      <div class="score">
+        <div class="ring" id="ring" style="--p:0"><i id="ringVal">0</i></div>
+        <div class="lbl"><b id="scoreTitle">Overall SEO health</b><span id="scoreNote"></span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Issues <small id="issueCount"></small></h2>
+      <div class="filters" id="filters">
+        <button data-f="all" class="on">All</button>
+        <button data-f="critical">Critical</button>
+        <button data-f="high">High</button>
+        <button data-f="medium">Medium</button>
+        <button data-f="low">Low</button>
+      </div>
+      <div id="issues"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Pages <small id="pageCount"></small></h2>
+      <div class="rows" id="pageRows"></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>What this page is.</b> A working, single-request crawler: it fetches pages server-side, parses HTML without a browser, and evaluates every check against the real markup and response headers. Site-level checks (robots.txt, sitemap, orphans, duplicate clusters, click depth, exposed files) run once the crawl finishes.<br><br>
+    <b>What it is not.</b> A 50,000-page crawler needs a distributed queue, a headless renderer, a datastore and resumable jobs — that architecture, with all 264 checks and their rules, is in the accompanying specification document.
+  </div>
+</div>
+
+<script>
+(function(){
+  var form = document.getElementById('f');
+  var input = document.getElementById('url');
+  var go = document.getElementById('go');
+  var progress = document.getElementById('progress');
+  var results = document.getElementById('results');
+  var liveRows = document.getElementById('liveRows');
+  var pText = document.getElementById('pText');
+  var pCount = document.getElementById('pCount');
+  var statsEl = document.getElementById('stats');
+  var issuesEl = document.getElementById('issues');
+  var pageRows = document.getElementById('pageRows');
+  var allIssues = [];
+  var filter = 'all';
+  var API_BASE = 'https://mrcyklfwahwtvsbhhzrt.supabase.co/functions/v1/seolens';
+  function apiUrl(){ return API_BASE ? new URL(API_BASE) : new URL(window.location.href); }
+  var t0 = 0, timer = null;
+
+  document.getElementById('checkBadge').textContent = '264 checks · live crawler';
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = (input.value || '').trim();
+    if (!v) { input.focus(); return; }
+    start(v, document.getElementById('max').value);
+  });
+
+  function start(target, max){
+    go.disabled = true; go.textContent = 'Crawling…';
+    results.classList.add('hidden'); progress.classList.remove('hidden');
+    liveRows.innerHTML = ''; issuesEl.innerHTML = ''; statsEl.innerHTML = '';
+    allIssues = [];
+    window.__done = null;
+    window.__streamOk = false;
+    t0 = Date.now();
+    pText.textContent = 'Fetching robots.txt, sitemap and ' + target + '…';
+    pCount.textContent = '';
+    if (timer) clearInterval(timer);
+    timer = setInterval(function(){
+      pCount.textContent = ((Date.now()-t0)/1000).toFixed(1) + 's';
+    }, 100);
+
+    var u = apiUrl();
+    window.__lastUrl = u.toString();
+    window.__fallback = false;
+    u.searchParams.set('api','crawl');
+    u.searchParams.set('url', target);
+    u.searchParams.set('max', max);
+
+    fetch(u.toString(), { headers: { 'accept': 'application/x-ndjson' } }).then(function(res){
+      if (!res.body) return fallback(u);
+      var reader = res.body.getReader();
+      var dec = new TextDecoder();
+      var buf = '';
+      function pump(){
+        return reader.read().then(function(r){
+          if (r.done) { finish(); return; }
+          buf += dec.decode(r.value, { stream: true });
+          var parts = buf.split('\n');
+          buf = parts.pop();
+          parts.forEach(function(line){
+            if (!line.trim()) return;
+            try { handle(JSON.parse(line)); } catch(err){}
+          });
+          return pump();
+        });
+      }
+      return pump().catch(function(){ return fallback(u); });
+    }).catch(function(err){
+      pText.textContent = 'Crawl failed: ' + err.message;
+      go.disabled = false; go.textContent = 'Start crawl';
+    });
+  }
+
+  function handle(msg){
+    if (msg.type === 'start') {
+      pText.textContent = 'Crawling ' + msg.target + ' — ' + msg.checks + ' checks per page';
+    }
+    if (msg.type === 'page') {
+      pText.textContent = msg.url;
+      var el = document.createElement('div');
+      el.className = 'row';
+      el.innerHTML = '<span class="chip ' + (msg.status>=200&&msg.status<300?'c-pass':'c-critical') + '">' + msg.status + '</span>' +
+        '<span class="u">' + esc(msg.url) + '<br><span style="color:var(--dim);font-size:12px">' + esc(msg.title || 'no title') + ' · ' + msg.words + ' words</span></span>' +
+        '<span class="n">' + msg.found + ' issues · ' + msg.score + '/100</span>';
+      liveRows.appendChild(el);
+      liveRows.scrollTop = liveRows.scrollHeight;
+    }
+    if (msg.type === 'error') {
+      pText.textContent = 'Error: ' + msg.message;
+    }
+    if (msg.type === 'done') {
+      window.__done = msg;
+    }
+  }
+
+  function fallback(u){
+    if (window.__fallback) return;
+    window.__fallback = true;
+    pText.textContent = 'Streaming unavailable on this network — running the crawl in one request…';
+    var j = new URL(u.toString());
+    j.searchParams.set('json','1');
+    return fetch(j.toString(), { headers: { 'accept': 'application/json' } }).then(function(r){ return r.json(); }).then(function(msg){
+      if (msg && msg.type === 'done') { window.__done = msg; finish(); }
+      else { pText.textContent = 'Crawl failed: ' + (msg && msg.error || 'unknown error'); go.disabled = false; go.textContent = 'Start crawl'; }
+    }).catch(function(e){
+      pText.textContent = 'Crawl failed: ' + e.message;
+      go.disabled = false; go.textContent = 'Start crawl';
+    });
+  }
+
+  function finish(){
+    window.__fallback = false;
+    clearInterval(timer);
+    go.disabled = false; go.textContent = 'Start crawl';
+    var msg = window.__done;
+    if (!msg) { fallbackFromLast(); return; }
+    progress.classList.add('hidden');
+    results.classList.remove('hidden');
+    render(msg);
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function fallbackFromLast(){
+    if (!window.__lastUrl) { pText.textContent = 'Crawl ended without results.'; return; }
+    fallback(new URL(window.__lastUrl));
+  }
+
+  function render(msg){
+    var s = msg.summary;
+    var secs = (msg.durationMs/1000).toFixed(1);
+    statsEl.innerHTML = [
+      stat('Health score', s.score + '/100', s.score>=80?'pass':s.score>=60?'medium':'critical'),
+      stat('Critical', s.bySeverity.critical||0, 'critical'),
+      stat('High', s.bySeverity.high||0, 'high'),
+      stat('Medium', s.bySeverity.medium||0, 'medium'),
+      stat('Low', s.bySeverity.low||0, 'low'),
+      stat('Pages crawled', msg.pagesCrawled, ''),
+      stat('Checks run', msg.checksRun, ''),
+      stat('Time', secs + 's', '')
+    ].join('');
+
+    var ring = document.getElementById('ring');
+    ring.style.setProperty('--p', s.score);
+    document.getElementById('ringVal').textContent = s.score;
+    document.getElementById('scoreNote').textContent =
+      msg.pagesCrawled + ' pages · ' + msg.checksRun + ' checks per page · ' + secs + 's · ' + s.issues.length + ' distinct issues';
+
+    allIssues = s.issues;
+    document.getElementById('issueCount').textContent = s.issues.length + ' distinct issues across ' + msg.pagesCrawled + ' pages';
+    drawIssues();
+
+    pageRows.innerHTML = msg.pages.map(function(p){
+      var cls = p.status>=200&&p.status<300 ? (p.score>=80?'c-pass':p.score>=60?'c-medium':'c-high') : 'c-critical';
+      return '<div class="row"><span class="chip ' + cls + '">' + (p.status||'ERR') + '</span>' +
+        '<span class="u">' + esc(p.url) + '<br><span style="color:var(--dim);font-size:12px">' + esc(p.title||'no title') + ' · ' + p.words + ' words</span></span>' +
+        '<span class="n">' + p.score + '/100</span></div>';
+    }).join('');
+    document.getElementById('pageCount').textContent = msg.pagesCrawled + ' pages · ' + (msg.site && msg.site.depthMax) + ' max depth';
+  }
+
+  function stat(k, v, cls){ return '<div class="stat"><div class="k">' + k + '</div><div class="v ' + (cls||'') + '">' + v + '</div></div>'; }
+
+  document.getElementById('filters').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    filter = b.getAttribute('data-f');
+    Array.prototype.forEach.call(this.children, function(x){ x.classList.toggle('on', x===b); });
+    drawIssues();
+  });
+
+  function drawIssues(){
+    var list = allIssues.filter(function(i){ return filter==='all' || i.sev===filter; });
+    if (!list.length) { issuesEl.innerHTML = '<div class="empty">No issues in this severity.</div>'; return; }
+    issuesEl.innerHTML = list.map(function(i, idx){
+      return '<div class="issue" data-i="' + idx + '">' +
+        '<div class="top"><span class="chip c-' + i.sev + '">' + i.sev + '</span>' +
+        '<span class="id">' + i.id + '</span><span class="t">' + esc(i.title) + '</span>' +
+        '<span class="n" style="color:var(--dim);font-size:12px">' + (i.count>1 ? i.count + ' pages' : '1 page') + '</span>' +
+        '<button class="toggle">show URLs</button></div>' +
+        '<div class="msg">' + esc(i.msg || '') + '</div>' +
+        '<div class="urls">' + i.urls.map(function(u){ return '<div>' + esc(u) + '</div>'; }).join('') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  issuesEl.addEventListener('click', function(e){
+    var btn = e.target.closest('.toggle'); if (!btn) return;
+    var card = btn.closest('.issue');
+    card.classList.toggle('open');
+    btn.textContent = card.classList.contains('open') ? 'hide URLs' : 'show URLs';
+  });
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+
+  // prefill from ?url= for sharing
+  var q = new URL(window.location.href).searchParams.get('url');
+  if (q) { input.value = q; }
+})();
+</script>
+</body>
+</html>
