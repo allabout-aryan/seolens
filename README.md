@@ -5,7 +5,7 @@ headers, and evaluates **264 checks across 19 categories** — then lists every 
 measured value and the fix.
 
 **Live UI:** https://allabout-aryan.github.io/seolens/
-**Full specification:** SeoLens_SEO_Crawler_Spec.docx (39 pages, all 264 checks + the 50,000-page architecture)
+**Specification:** `SeoLens_SEO_Crawler_Spec.docx` — 39 pages, all 264 checks, and the 50,000-page architecture.
 
 ## What it checks
 
@@ -22,20 +22,60 @@ measured value and the fix.
 | International | 8 | Performance | 20 |
 | Security & Headers | 14 | **Total** | **264** |
 
-## How it works
+226 checks run per page against the parsed document and response headers. 38 run once per crawl
+against the graph: robots.txt, sitemaps, orphans, click depth, duplicate clusters, canonical
+conflicts and exposed files.
 
-`index.html` is the front end: enter a URL, pick a page budget, and the crawl runs on a serverless
-endpoint that fetches pages server-side (no CORS proxy, no browser rendering), streams each page
-back as it lands, and returns a scored report.
+## Layout
 
-- 226 checks run per page against the parsed document and response headers.
-- 38 checks run once per crawl against the graph: robots.txt, sitemaps, orphans, click depth,
-  duplicate clusters, canonical conflicts and exposed files.
-- The hosted demo is capped at 100 pages per run because it executes inside one serverless
-  request. The specification describes the distributed architecture required for 50,000 pages.
+```
+index.html            the hosted UI (GitHub Pages) — calls the crawl API
+app/engine/           the engine, TypeScript, runs unchanged on Deno and Node
+  lib.ts              tolerant HTML parser + feature extraction
+  features.ts         derived signals (dates, schema, analytics, DOM stats)
+  checks1..3.ts       the 264-check registry
+  crawl.ts            frontier, robots, politeness, concurrency
+  index.ts            edge-function server: UI + streaming JSON API
+  ui.ts               the UI as a module, generated from index.html
+app/cli.ts            terminal runner
+tests/                regression suite and fixtures
+```
+
+## Run it locally
+
+The CLI needs [Deno](https://deno.land):
+
+```bash
+deno run --allow-net app/cli.ts https://example.com --max 50
+deno run --allow-net app/cli.ts example.com --max 200 --json report.json
+```
+
+It prints a live line per page and a severity-sorted issue list. `--json` writes the full report.
+
+## Tests
+
+```bash
+node tests/run.mjs
+```
+
+The suite spins up a static server over `tests/fixtures`, crawls it with the real crawler, and
+asserts specific verdicts per check (a fixture with two H1s must fail `HED-001`; a clean page must
+pass it), plus registry integrity: no duplicate ids, every check has a rule and a fix, ids follow
+the `XXX-000` convention. 42 assertions, no dependencies, Node 18+.
+
+## Scoring
+
+The score is the weighted share of applicable checks that pass: each evaluated check adds its
+severity weight to the denominator, a failure costs the full weight and a warning half.
+Not-applicable and informational checks are excluded from both sides, so a page with no images is
+never scored on image checks. Weights: critical 6, high 3, medium 1.5, low 0.5.
 
 ## Limits, stated plainly
 
+The hosted UI is capped at 100 pages per run because it executes inside one serverless request.
+A 50,000-page crawl needs the distributed frontier described in the specification.
+
 Throughput on a single domain is bounded by politeness, not by worker count: a CDN-fronted site
 tolerating 20 requests per second reaches 50,000 pages in about 42 minutes, while a slow CMS at
-2 rps takes about 7 hours. The spec states both and requires the UI to show the ETA.
+2 rps takes about 7 hours. The crawler honours robots.txt by default, caps concurrency per host,
+and backs off on 429/503.

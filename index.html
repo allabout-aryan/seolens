@@ -67,6 +67,24 @@
   .filters button{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;
     padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
   .filters button.on{background:rgba(79,140,255,.15);border-color:var(--accent);color:#cfe0ff}
+  .filters select{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;
+    padding:5px 10px;font-size:12.5px;font-weight:600;font-family:inherit;outline:none;margin-left:auto;cursor:pointer}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:7px;
+    padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .ghost:hover{border-color:var(--accent);color:#cfe0ff}
+  .issue .fixline{margin:8px 0 4px;color:var(--txt);font-size:12.5px;line-height:1.5}
+  .issue .ruleline{color:var(--dim);font-size:12px;line-height:1.5;margin-bottom:6px}
+  .issue .fixline b,.issue .ruleline b{color:var(--accent);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .issue .ulist{margin-top:6px;border-top:1px dashed rgba(30,39,51,.9);padding-top:6px}
+  .row.clickable{cursor:pointer}
+  .row.clickable:hover{background:var(--panel2)}
+  .detail{padding:16px}
+  .detail .dhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .detail .durl{font-size:13.5px;color:var(--txt);word-break:break-all;font-weight:600}
+  .detail .dmeta{color:var(--dim);font-size:12px}
+  .detail ul{margin:0;padding-left:18px}
+  .detail li{font-size:13px;color:var(--muted);margin:5px 0}
+  .detail li b{color:var(--txt);font-weight:600}
   .issue{padding:13px 16px;border-bottom:1px solid rgba(30,39,51,.7)}
   .issue .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .issue .id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dim)}
@@ -154,8 +172,15 @@
         <button data-f="high">High</button>
         <button data-f="medium">Medium</button>
         <button data-f="low">Low</button>
+        <select id="catsel" aria-label="Filter by category"><option value="all">All categories</option></select>
+        <button class="ghost" id="csvBtn" type="button">Export CSV</button>
       </div>
       <div id="issues"></div>
+    </div>
+
+    <div class="panel hidden" id="pageDetail">
+      <h2>Page detail <small><button class="ghost" id="backBtn" type="button">Back to site issues</button></small></h2>
+      <div class="detail" id="detailBody"></div>
     </div>
 
     <div class="panel">
@@ -185,6 +210,8 @@
   var pageRows = document.getElementById('pageRows');
   var allIssues = [];
   var filter = 'all';
+  var catFilter = 'all';
+  var report = null;
   var API_BASE = 'https://mrcyklfwahwtvsbhhzrt.supabase.co/functions/v1/seolens';
   function apiUrl(){ return API_BASE ? new URL(API_BASE) : new URL(window.location.href); }
   var t0 = 0, timer = null;
@@ -202,6 +229,7 @@
     go.disabled = true; go.textContent = 'Crawling…';
     results.classList.add('hidden'); progress.classList.remove('hidden');
     liveRows.innerHTML = ''; issuesEl.innerHTML = ''; statsEl.innerHTML = '';
+    document.getElementById('pageDetail').classList.add('hidden');
     allIssues = [];
     window.__done = null;
     window.__streamOk = false;
@@ -320,12 +348,14 @@
       msg.pagesCrawled + ' pages · ' + msg.checksRun + ' checks per page · ' + secs + 's · ' + s.issues.length + ' distinct issues';
 
     allIssues = s.issues;
+    report = msg;
+    fillCategories(s.byCategory);
     document.getElementById('issueCount').textContent = s.issues.length + ' distinct issues across ' + msg.pagesCrawled + ' pages';
     drawIssues();
 
     pageRows.innerHTML = msg.pages.map(function(p){
       var cls = p.status>=200&&p.status<300 ? (p.score>=80?'c-pass':p.score>=60?'c-medium':'c-high') : 'c-critical';
-      return '<div class="row"><span class="chip ' + cls + '">' + (p.status||'ERR') + '</span>' +
+      return '<div class="row clickable" title="Show this page\'s issues"><span class="chip ' + cls + '">' + (p.status||'ERR') + '</span>' +
         '<span class="u">' + esc(p.url) + '<br><span style="color:var(--dim);font-size:12px">' + esc(p.title||'no title') + ' · ' + p.words + ' words</span></span>' +
         '<span class="n">' + p.score + '/100</span></div>';
     }).join('');
@@ -341,17 +371,31 @@
     drawIssues();
   });
 
+  function fillCategories(byCat){
+    var sel = document.getElementById('catsel');
+    var keys = Object.keys(byCat || {}).sort(function(a,b){ return byCat[b]-byCat[a]; });
+    sel.innerHTML = '<option value="all">All categories (' + keys.length + ')</option>' +
+      keys.map(function(k){ return '<option value="' + esc(k) + '">' + esc(k) + ' (' + byCat[k] + ')</option>'; }).join('');
+    sel.value = catFilter;
+  }
+
   function drawIssues(){
-    var list = allIssues.filter(function(i){ return filter==='all' || i.sev===filter; });
+    var list = allIssues.filter(function(i){
+      return (filter==='all' || i.sev===filter) && (catFilter==='all' || i.cat===catFilter);
+    });
     if (!list.length) { issuesEl.innerHTML = '<div class="empty">No issues in this severity.</div>'; return; }
     issuesEl.innerHTML = list.map(function(i, idx){
       return '<div class="issue" data-i="' + idx + '">' +
         '<div class="top"><span class="chip c-' + i.sev + '">' + i.sev + '</span>' +
         '<span class="id">' + i.id + '</span><span class="t">' + esc(i.title) + '</span>' +
         '<span class="n" style="color:var(--dim);font-size:12px">' + (i.count>1 ? i.count + ' pages' : '1 page') + '</span>' +
-        '<button class="toggle">show URLs</button></div>' +
+        '<button class="toggle">show detail</button></div>' +
         '<div class="msg">' + esc(i.msg || '') + '</div>' +
-        '<div class="urls">' + i.urls.map(function(u){ return '<div>' + esc(u) + '</div>'; }).join('') + '</div>' +
+        '<div class="urls">' +
+          (i.fix ? '<div class="fixline"><b>Fix</b><br>' + esc(i.fix) + '</div>' : '') +
+          (i.rule ? '<div class="ruleline"><b>How it is checked</b><br>' + esc(i.rule) + '</div>' : '') +
+          '<div class="ulist">' + i.urls.map(function(u){ return '<div>' + esc(u) + '</div>'; }).join('') + '</div>' +
+        '</div>' +
       '</div>';
     }).join('');
   }
@@ -360,7 +404,56 @@
     var btn = e.target.closest('.toggle'); if (!btn) return;
     var card = btn.closest('.issue');
     card.classList.toggle('open');
-    btn.textContent = card.classList.contains('open') ? 'hide URLs' : 'show URLs';
+    btn.textContent = card.classList.contains('open') ? 'hide detail' : 'show detail';
+  });
+
+  document.getElementById('catsel').addEventListener('change', function(){
+    catFilter = this.value; drawIssues();
+  });
+
+  document.getElementById('csvBtn').addEventListener('click', function(){
+    if (!allIssues.length) return;
+    var rows = [['id','severity','category','title','observed','affected_pages','fix']];
+    allIssues.forEach(function(i){ rows.push([i.id, i.sev, i.cat, i.title, i.msg, i.count, i.fix || '']); });
+    var csv = rows.map(function(r){
+      return r.map(function(c){ return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'seolens-issues-' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
+
+  document.getElementById('backBtn').addEventListener('click', function(){
+    document.getElementById('pageDetail').classList.add('hidden');
+  });
+
+  function showPageDetail(idx){
+    if (!report || !report.pages[idx]) return;
+    var p = report.pages[idx];
+    var body = document.getElementById('detailBody');
+    var issues = p.issues || [];
+    body.innerHTML =
+      '<div class="dhead">' +
+        '<span class="chip ' + (p.status>=200&&p.status<300?'c-pass':'c-critical') + '">' + (p.status||'ERR') + '</span>' +
+        '<span class="durl">' + esc(p.url) + '</span>' +
+        '<span class="dmeta">' + p.words + ' words · score ' + p.score + '/100 · ' + issues.length + ' issues</span>' +
+      '</div>' +
+      (issues.length
+        ? '<ul>' + issues.map(function(i){
+            return '<li><span class="chip c-' + i.sev + '">' + i.sev + '</span> <b>' + esc(i.title) + '</b> — ' + esc(i.msg || '') + '</li>';
+          }).join('') + '</ul>'
+        : '<div class="empty">No issues on this page.</div>');
+    document.getElementById('pageDetail').classList.remove('hidden');
+    document.getElementById('pageDetail').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  pageRows.addEventListener('click', function(e){
+    var row = e.target.closest('.row');
+    if (!row) return;
+    var idx = Array.prototype.indexOf.call(pageRows.children, row);
+    if (idx >= 0) showPageDetail(idx);
   });
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }

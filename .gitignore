@@ -1,0 +1,16 @@
+# build artefacts from the test runner
+.engine-build/
+
+# node
+node_modules/
+npm-debug.log*
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# local reports
+report.json
+*.csv
